@@ -1,0 +1,64 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare site
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          mkdir -p _site
+          cp Schneider_MP-C_Controller_Selector_macOS.html _site/index.html
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          api_url = os.environ.get("API_BASE_URL", "").strip().rstrip("/")
+          if api_url:
+              parsed = urlparse(api_url)
+              if parsed.scheme != "https" or not parsed.netloc:
+                  raise SystemExit("API_BASE_URL must be an HTTPS URL.")
+          page = Path("_site/index.html")
+          html = page.read_text(encoding="utf-8")
+          placeholder = 'content="__API_BASE_URL__"'
+          if html.count(placeholder) != 1:
+              raise SystemExit("Could not find the API base URL placeholder.")
+          page.write_text(
+              html.replace(placeholder, f'content="{api_url}"'),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

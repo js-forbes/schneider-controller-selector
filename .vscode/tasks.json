@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run private selector preview",
+			"type": "shell",
+			"command": "python3",
+			"args": [
+				"controller_selector_server.py"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

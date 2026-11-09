@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#e9e9ed">
+<meta name="mpc-selector-api-base-url" content="__API_BASE_URL__">
+<title>MP-C Controller Selector</title>
+<style>
+:root {
+  color-scheme: light;
+  --canvas: #e9e9ed;
+  --window: #ffffff;
+  --sidebar: #f5f5f7;
+  --text: #1d1d1f;
+  --secondary: #6e6e73;
+  --tertiary: #98989d;
+  --separator: rgba(60, 60, 67, .16);
+  --control: #ffffff;
+  --control-border: rgba(60, 60, 67, .22);
+  --accent: #007aff;
+  --success: #248a3d;
+  --danger: #d70015;
+  --radius-window: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; color: var(--text); background: var(--canvas); }
+body { min-width: 320px; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+/* A single macOS-style app window rather than a stack of dashboard cards. */
+.desktop { min-height: 100vh; padding: 18px; display: grid; place-items: center; }
+.app-window {
+  width: min(1440px, 100%);
+  height: min(900px, calc(100vh - 36px));
+  min-height: 650px;
+  background: var(--window);
+  border: 1px solid rgba(0,0,0,.11);
+  border-radius: var(--radius-window);
+  overflow: hidden;
+  box-shadow: 0 18px 60px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  display: flex;
+  flex-direction: column;
+}
+.titlebar {
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  padding: 0 16px;
+  background: #fafafa;
+  border-bottom: 1px solid var(--separator);
+  position: relative;
+}
+.traffic-lights { display: flex; align-items: center; gap: 8px; }
+.traffic-lights span { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
+.traffic-lights .red { background: #ff5f57; }
+.traffic-lights .yellow { background: #febc2e; }
+.traffic-lights .green { background: #28c840; }
+.window-title { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: -.1px; }
+.window-meta { justify-self: end; font-size: 11px; color: var(--secondary); }
+.workspace { display: grid; grid-template-columns: 365px minmax(0,1fr); flex: 1; min-height: 0; }
+.sidebar {
+  min-width: 0;
+  background: var(--sidebar);
+  border-right: 1px solid var(--separator);
+  padding: 23px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+.sidebar-heading { margin: 0 0 2px; font-size: 21px; font-weight: 700; letter-spacing: -.55px; }
+.sidebar-subtitle { margin: 0; color: var(--secondary); font-size: 12px; line-height: 1.45; }
+.section { border-top: 1px solid var(--separator); padding-top: 14px; }
+.section-title { margin: 0 0 11px; color: var(--secondary); font-size: 10px; font-weight: 700; letter-spacing: .65px; }
+.point-list { display: grid; gap: 9px; }
+.point-row { display: grid; grid-template-columns: 52px minmax(0,1fr) 82px; align-items: end; gap: 9px; }
+.point-type { align-self: center; font-size: 13px; font-weight: 650; letter-spacing: -.1px; }
+.point-type small { display: block; margin-top: 2px; color: var(--secondary); font-size: 9px; font-weight: 400; letter-spacing: 0; }
+.field label { display: block; margin: 0 0 4px; font-size: 10px; color: var(--secondary); }
+.field input, .field select {
+  width: 100%; height: 30px; min-width: 0; padding: 0 8px;
+  border: 1px solid var(--control-border); border-radius: 7px;
+  background: var(--control); color: var(--text); font-size: 12px;
+  outline: none; box-shadow: 0 1px 1px rgba(0,0,0,.025);
+}
+.field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,122,255,.16); }
+.helper { margin: 9px 0 0; color: var(--secondary); font-size: 10px; line-height: 1.45; }
+.model-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 15px; }
+.model-option {
+  min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 34px; border-bottom: 1px solid rgba(60,60,67,.10);
+  color: var(--text); font-size: 11px; font-weight: 500;
+}
+.model-toggle { min-width: 0; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.model-toggle input {
+  appearance: none; -webkit-appearance: none; flex: 0 0 auto;
+  width: 30px; height: 18px; margin: 0; border: 0; border-radius: 99px;
+  background: #d1d1d6; position: relative; cursor: pointer; transition: background .16s ease;
+}
+.model-toggle input::before {
+  content: ""; position: absolute; width: 14px; height: 14px; left: 2px; top: 2px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.22);
+  transition: transform .16s ease;
+}
+.model-toggle input:checked { background: #34c759; }
+.model-toggle input:checked::before { transform: translateX(12px); }
+.model-toggle input:focus-visible { outline: 3px solid rgba(0,122,255,.22); outline-offset: 2px; }
+.forced-quantity {
+  width: 48px; height: 26px; padding: 0 5px; border: 1px solid var(--control-border);
+  border-radius: 6px; background: var(--control); color: var(--text); font-size: 11px;
+  text-align: center;
+}
+.forced-quantity:focus { border-color: var(--accent); outline: 3px solid rgba(0,122,255,.16); }
+.optimize-grid { display: grid; grid-template-columns: minmax(0,1fr) 92px; gap: 10px; align-items: end; }
+.strategy-help { margin: 8px 0 0; color: var(--secondary); font-size: 10px; line-height: 1.4; min-height: 28px; }
+.primary {
+  margin-top: auto; width: 100%; min-height: 36px; padding: 0 16px;
+  border: 0; border-radius: 8px; background: var(--accent); color: white;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: inset 0 1px rgba(255,255,255,.18), 0 1px 2px rgba(0,0,0,.12);
+  transition: background .12s ease, transform .12s ease;
+}
+.primary:hover { background: #1684ff; }
+.primary:active { background: #0068d7; transform: translateY(1px); }
+.primary:focus-visible { outline: 3px solid rgba(0,122,255,.25); outline-offset: 3px; }
+
+.content { min-width: 0; min-height: 0; padding: 26px 30px 20px; display: flex; flex-direction: column; overflow-y: auto; }
+.content-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 2px; }
+.content-title { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.65px; }
+.content-caption { margin: 5px 0 0; color: var(--secondary); font-size: 12px; }
+.subtle-label { color: var(--tertiary); font-size: 10px; letter-spacing: .5px; font-weight: 650; white-space: nowrap; padding-top: 6px; }
+.results-placeholder {
+  flex: 1; min-height: 180px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; color: var(--secondary);
+  border-top: 1px solid var(--separator); border-bottom: 1px solid var(--separator); padding: 30px 16px;
+}
+.placeholder-symbol { color: #a1a1a6; font-size: 30px; line-height: 1; margin-bottom: 12px; font-weight: 300; }
+.results-placeholder strong { color: var(--text); font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+.results-placeholder span { max-width: 310px; font-size: 11px; line-height: 1.5; }
+.results-data { display: none; }
+.result-heading { display: flex; align-items: center; gap: 8px; margin: 9px 0 9px; }
+.result-heading h2 { margin: 0; font-size: 16px; letter-spacing: -.25px; font-weight: 650; }
+.status-mark { width: 17px; height: 17px; border-radius: 50%; background: #e7f6eb; color: var(--success); display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; flex: 0 0 auto; }
+.status-mark.error { background: #ffebeb; color: var(--danger); }
+.status { margin: 0 0 18px; color: var(--secondary); font-size: 11px; line-height: 1.45; }
+.status.error { color: var(--danger); }
+.metrics { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid var(--separator); border-bottom: 1px solid var(--separator); padding: 15px 0; margin-bottom: 20px; }
+.metric { padding: 0 18px; border-right: 1px solid var(--separator); }
+.metric:first-child { padding-left: 0; }
+.metric:last-child { border-right: 0; }
+.metric-label { display: block; color: var(--secondary); font-size: 10px; margin-bottom: 5px; }
+.metric-value { display: block; font-size: 27px; line-height: 1.1; font-weight: 650; letter-spacing: -.9px; font-variant-numeric: tabular-nums; }
+.tables-grid { display: grid; grid-template-columns: 1.08fr .92fr; gap: 24px; }
+.table-title { margin: 0 0 8px; font-size: 12px; font-weight: 650; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+th { color: var(--secondary); font-size: 10px; font-weight: 600; text-align: left; white-space: nowrap; }
+th, td { padding: 8px 7px; border-bottom: 1px solid rgba(60,60,67,.12); }
+td { color: var(--text); }
+tbody tr:last-child td { border-bottom: 0; }
+.num { text-align: right; }
+.method { margin: 10px 0 0; color: var(--secondary); font-size: 10px; line-height: 1.5; }
+.reference { margin-top: auto; padding-top: 20px; }
+.reference-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.reference-heading h2 { margin: 0; font-size: 13px; font-weight: 650; }
+.reference-heading span { color: var(--tertiary); font-size: 9px; }
+.reference table { border-top: 1px solid var(--separator); }
+.reference th, .reference td { padding: 6px 7px; }
+.reference-note, .disclaimer { color: var(--secondary); font-size: 9px; line-height: 1.45; }
+.reference-note { margin: 7px 0 0; }
+.disclaimer { margin: 16px 0 0; padding-top: 10px; border-top: 1px solid var(--separator); }
+.saved-library { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--separator); }
+.workspace-access { margin-bottom: 16px; padding: 14px; border: 1px solid var(--separator); border-radius: 9px; background: #fafafa; }
+.workspace-access h3 { margin: 0 0 8px; font-size: 12px; font-weight: 650; }
+.workspace-code-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.workspace-code-field { flex: 1 1 180px; }
+.workspace-code-field input {
+  width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--control-border);
+  border-radius: 7px; background: var(--control); color: var(--text); font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 2px; text-transform: uppercase;
+}
+.workspace-code-form .toolbar-button { min-height: 34px; }
+.workspace-status { margin: 8px 0 0; color: var(--secondary); font-size: 10px; line-height: 1.45; }
+.workspace-status.error { color: var(--danger); }
+.saved-heading, .saved-toolbar, .saved-card, .saved-card-actions { display: flex; align-items: center; }
+.saved-heading, .saved-card { justify-content: space-between; gap: 12px; }
+.saved-heading { margin-bottom: 10px; }
+.saved-heading h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.saved-count { color: var(--secondary); font-size: 10px; }
+.saved-toolbar { flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.toolbar-button, .small-button {
+  min-height: 30px; padding: 0 10px; border: 1px solid var(--control-border);
+  border-radius: 7px; background: var(--control); color: var(--text);
+  font-size: 11px; font-weight: 550;
+}
+.toolbar-button:hover, .small-button:hover { background: #f2f2f7; }
+.saved-notice { min-height: 15px; margin: 7px 0; color: var(--secondary); font-size: 10px; }
+.saved-notice.error { color: var(--danger); }
+.saved-list { display: grid; gap: 8px; }
+.saved-empty { margin: 0; padding: 16px; border: 1px dashed var(--control-border); border-radius: 8px; color: var(--secondary); font-size: 11px; text-align: center; }
+.saved-card { align-items: flex-start; padding: 12px; border: 1px solid var(--separator); border-radius: 9px; background: #fff; }
+.saved-card-main { min-width: 0; }
+.saved-card-name { overflow-wrap: anywhere; margin: 0; font-size: 12px; font-weight: 650; }
+.saved-card-meta { margin: 4px 0 0; color: var(--secondary); font-size: 10px; line-height: 1.45; }
+.saved-card-actions { flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 5px; }
+.small-button { min-height: 26px; padding: 0 8px; font-size: 10px; }
+.small-button.danger { color: var(--danger); }
+.dialog {
+  width: min(680px, calc(100vw - 32px)); max-height: min(85vh, 800px); padding: 0;
+  border: 1px solid rgba(0,0,0,.15); border-radius: 13px; color: var(--text);
+  box-shadow: 0 18px 60px rgba(0,0,0,.25);
+}
+.dialog::backdrop { background: rgba(0,0,0,.35); }
+.dialog-inner { padding: 22px; }
+.dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.dialog-header h2 { margin: 0; font-size: 19px; overflow-wrap: anywhere; }
+.dialog-close { border: 0; background: transparent; color: var(--secondary); font-size: 22px; line-height: 1; }
+.dialog-content { max-height: 58vh; overflow: auto; }
+.dialog-content table { table-layout: fixed; }
+.dialog-content th, .dialog-content td { text-align: center; }
+.dialog-content .metrics { margin: 14px 0; }
+.dialog-content .metric-value { text-align: center; }
+.dialog-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.dialog-footer .primary { width: auto; min-height: 32px; margin: 0; }
+.dialog-field { display: grid; gap: 5px; margin: 14px 0; }
+.dialog-field label { color: var(--secondary); font-size: 11px; }
+.dialog-field input { height: 36px; padding: 0 10px; border: 1px solid var(--control-border); border-radius: 7px; }
+.print-document { display: none; }
+
+@media (min-width: 900px) and (min-height: 680px) {
+  .content { overflow-y: auto; }
+  .reference { padding-top: 14px; }
+  .reference th, .reference td { padding-top: 5px; padding-bottom: 5px; }
+  .disclaimer { margin-top: 10px; }
+}
+@media (max-width: 899px) {
+  .desktop { display: block; padding: 0; }
+  .app-window { width: 100%; height: auto; min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--separator); padding: 22px 22px 18px; overflow: visible; }
+  .primary { margin-top: 0; }
+  .content { padding: 24px 22px 22px; overflow: visible; }
+  .results-placeholder { min-height: 210px; }
+  .reference { margin-top: 26px; }
+}
+@media (max-width: 560px) {
+  .titlebar { height: 43px; flex-basis: 43px; grid-template-columns: 1fr 2fr 1fr; padding: 0 12px; }
+  .traffic-lights { gap: 6px; }
+  .traffic-lights span { width: 10px; height: 10px; }
+  .window-title { font-size: 12px; }
+  .window-meta { font-size: 9px; }
+  .sidebar { padding: 20px 16px 16px; gap: 16px; }
+  .sidebar-heading { font-size: 20px; }
+  .content { padding: 21px 16px 20px; }
+  .content-title { font-size: 22px; }
+  .content-header { margin-bottom: 16px; }
+  .tables-grid { grid-template-columns: 1fr; gap: 18px; }
+  .metrics { padding: 13px 0; margin-bottom: 17px; }
+  .metric { padding: 0 10px; }
+  .metric-value { font-size: 23px; }
+  .metric-label { font-size: 9px; }
+  table { font-size: 10px; }
+  th { font-size: 9px; }
+  th, td { padding: 8px 5px; }
+  .reference { margin-top: 24px; }
+  .reference table { min-width: 360px; }
+  .reference { overflow-x: auto; }
+  .disclaimer { margin-top: 12px; }
+  .saved-card { flex-direction: column; }
+  .saved-card-actions { justify-content: flex-start; }
+  .dialog-inner { padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+@media print {
+  @page { size: landscape; }
+  html, body { min-height: 0; background: #fff; }
+  .desktop, dialog { display: none !important; }
+  .print-document { display: block !important; color: #111; font: 10pt Arial, sans-serif; }
+  .print-document h1 { margin: 0 0 6px; font-size: 20pt; }
+  .print-document p { margin: 5px 0; }
+  .print-document table { margin-top: 16px; font-size: 9pt; }
+  .print-document th, .print-document td { padding: 7px; border: 1px solid #bbb; }
+  .print-document th { color: #333; }
+  .print-document .print-meta { color: #555; font-size: 9pt; }
+}
+</style>
+</head>
+<body>
+<div class="desktop">
+  <div class="app-window">
+    <header class="titlebar">
+      <div class="traffic-lights" aria-hidden="true"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+      <div class="window-title">MP-C Controller Selector</div>
+      <div class="window-meta">Point planning</div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar" aria-label="Controller selection settings">
+        <div>
+          <h1 class="sidebar-heading">Configure selection</h1>
+          <p class="sidebar-subtitle">Enter your point schedule and choose which MP-C models are available.</p>
+        </div>
+
+        <section class="section">
+          <h2 class="section-title">POINT REQUIREMENTS</h2>
+          <div class="point-list">
+            <div class="point-row">
+              <div class="point-type">UB<small>Universal I/O</small></div>
+              <div class="field"><label for="ub">Required points</label><input id="ub" type="number" min="0" step="1" value="120"></div>
+              <div class="field"><label for="ubbuf">Buffer (%)</label><input id="ubbuf" type="number" min="0" step="0.1" value="10"></div>
+            </div>
+            <div class="point-row">
+              <div class="point-type">DO<small>Digital outputs</small></div>
+              <div class="field"><label for="do">Required points</label><input id="do" type="number" min="0" step="1" value="40"></div>
+              <div class="field"><label for="dobuf">Buffer (%)</label><input id="dobuf" type="number" min="0" step="0.1" value="10"></div>
+            </div>
+            <div class="point-row">
+              <div class="point-type">UC<small>Universal I/O</small></div>
+              <div class="field"><label for="uc">Required points</label><input id="uc" type="number" min="0" step="1" value="0"></div>
+              <div class="field"><label for="ucbuf">Buffer (%)</label><input id="ucbuf" type="number" min="0" step="0.1" value="10"></div>
+            </div>
+          </div>
+          <p class="helper">Each buffer is applied independently, then rounded up to a whole point. Example: 101 points with 10% buffer becomes 112.</p>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">AVAILABLE CONTROLLERS</h2>
+          <div class="model-grid" id="modelChecks"></div>
+          <p class="helper">The number at right is the required minimum for that model. The optimizer may add more; leave it at 0 for no minimum. The model must be enabled.</p>
+          <p class="helper">MP-C-18A and MP-C-18B have identical point capacities but different output hardware. Confirm output compatibility before selection.</p>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">OPTIMIZATION</h2>
+          <div class="optimize-grid">
+            <div class="field"><label for="objective">Selection priority</label>
+              <select id="objective">
+                <option value="fewest">Fewest controllers</option>
+                <option value="least">Least unused capacity</option>
+                <option value="largest">Prefer larger models</option>
+                <option value="balanced">Fewest model types</option>
+              </select>
+            </div>
+            <div class="field"><label for="maxN">Search limit</label><input id="maxN" type="number" min="1" max="120" value="60"></div>
+          </div>
+          <p class="strategy-help" id="objectiveHelp">Minimum controller count. Ties are resolved by lower unused capacity, then fewer model types.</p>
+        </section>
+
+        <button class="primary" id="solve" type="button">Calculate Selection</button>
+      </aside>
+
+      <main class="content" aria-label="Controller selection results">
+        <div class="content-header">
+          <div><h2 class="content-title">Selection result</h2><p class="content-caption">Controller quantities and point capacity summary</p></div>
+          <span class="subtle-label">SCHNEIDER ELECTRIC · MP-C</span>
+        </div>
+
+        <section class="saved-library" aria-labelledby="savedHeading">
+          <div class="saved-heading"><h2 id="savedHeading">Saved selections</h2><span class="saved-count" id="savedCount">0 saved</span></div>
+          <div class="workspace-access">
+            <h3>Private workspace code</h3>
+            <form class="workspace-code-form" id="workspaceCodeForm">
+              <div class="field workspace-code-field"><label for="workspaceCode">Workspace code</label><input id="workspaceCode" type="text" value="TESTPAGE" maxlength="64" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Enter code" aria-describedby="workspaceCodeHelp"></div>
+              <button class="toolbar-button" type="submit">Connect</button>
+              <button class="toolbar-button" id="createWorkspace" type="button">Create new code</button>
+              <button class="toolbar-button" id="createCustomWorkspace" type="button">Create custom code</button>
+              <button class="toolbar-button" id="disconnectWorkspace" type="button" hidden>Disconnect</button>
+            </form>
+            <p class="workspace-status" id="workspaceCodeHelp" role="status" aria-live="polite">Create a random code or enter an existing one to load its saved selections. Custom codes must be exactly 8 printable Unicode characters without spaces. Anyone with the code can view and edit that workspace; share it only with people you trust.</p>
+          </div>
+          <div class="saved-toolbar">
+            <button class="toolbar-button" id="saveSelection" type="button">Save current selection</button>
+            <button class="toolbar-button" id="importDatabase" type="button">Import database</button>
+            <button class="toolbar-button" id="exportDatabase" type="button">Export database</button>
+            <input id="databaseFile" type="file" accept=".json,application/json" hidden>
+          </div>
+          <p class="helper">Selections are stored in the workspace’s SQLite database. Export a JSON file to back them up or move them to another workspace.</p>
+          <p class="saved-notice" id="savedNotice" role="status" aria-live="polite"></p>
+          <div class="saved-list" id="savedList"></div>
+        </section>
+
+        <div class="results-placeholder" id="placeholder">
+          <div class="placeholder-symbol" aria-hidden="true">⌘</div>
+          <strong>Ready when you are</strong>
+          <span>Enter the required UB, DO and UC points, then calculate to see a recommended controller combination.</span>
+        </div>
+
+        <div class="results-data" id="resultsData">
+          <div class="result-heading"><span class="status-mark" id="statusMark" aria-hidden="true">✓</span><h2>Recommended controller combination</h2></div>
+          <p id="status" class="status">The selected combination meets or exceeds all buffered point requirements.</p>
+          <div class="metrics">
+            <div class="metric"><span class="metric-label">Total controllers</span><strong class="metric-value" id="totalUnits">—</strong></div>
+            <div class="metric"><span class="metric-label">Different models</span><strong class="metric-value" id="modelCount">—</strong></div>
+            <div class="metric"><span class="metric-label">Installed I/O</span><strong class="metric-value" id="totalIO">—</strong></div>
+          </div>
+          <div class="tables-grid">
+            <section>
+              <h3 class="table-title">Controller quantities</h3>
+              <table><thead><tr><th>Controller model</th><th class="num">Qty.</th><th class="num">UB</th><th class="num">DO</th><th class="num">UC</th></tr></thead><tbody id="outputRows"></tbody></table>
+            </section>
+            <section>
+              <h3 class="table-title">Point capacity</h3>
+              <table><thead><tr><th>Type</th><th class="num">Required</th><th class="num">Installed</th><th class="num">Spare</th></tr></thead><tbody id="capacityRows"></tbody></table>
+              <p class="method" id="method"></p>
+            </section>
+          </div>
+        </div>
+
+        <section class="reference">
+          <div class="reference-heading"><h2>Controller capacity reference</h2><span>BUILT-IN I/O</span></div>
+          <table><thead><tr><th>Model</th><th class="num">UB</th><th class="num">DO</th><th class="num">UC</th><th class="num">Total I/O</th></tr></thead><tbody>
+            <tr><td>MP-C-15A</td><td class="num">8</td><td class="num">7</td><td class="num">0</td><td class="num">15</td></tr>
+            <tr><td>MP-C-18A</td><td class="num">10</td><td class="num">8</td><td class="num">0</td><td class="num">18</td></tr>
+            <tr><td>MP-C-18B</td><td class="num">10</td><td class="num">8</td><td class="num">0</td><td class="num">18</td></tr>
+            <tr><td>MP-C-24A</td><td class="num">16</td><td class="num">4</td><td class="num">4</td><td class="num">24</td></tr>
+            <tr><td>MP-C-36A</td><td class="num">20</td><td class="num">8</td><td class="num">8</td><td class="num">36</td></tr>
+          </tbody></table>
+          <p class="reference-note">Source: supplied Schneider Electric controller chart. Expansion modules are excluded.</p>
+        </section>
+        <p class="disclaimer">Engineering note: This is a point-count selection aid, not a complete engineering selection. Verify output electrical type, signal compatibility, application suitability, power and project standards before procurement.</p>
+      </main>
+    </div>
+  </div>
+</div>
+<dialog class="dialog" id="recordDialog" aria-labelledby="recordDialogTitle">
+  <div class="dialog-inner">
+    <div class="dialog-header"><h2 id="recordDialogTitle"></h2><button class="dialog-close" type="button" data-close-dialog aria-label="Close">×</button></div>
+    <div class="dialog-content" id="recordDialogContent"></div>
+    <div class="dialog-footer" id="recordDialogActions"></div>
+  </div>
+</dialog>
+<dialog class="dialog" id="saveDialog" aria-labelledby="saveDialogTitle">
+  <form class="dialog-inner" id="saveForm">
+    <div class="dialog-header"><h2 id="saveDialogTitle">Save selection</h2><button class="dialog-close" type="button" data-close-dialog aria-label="Close">×</button></div>
+    <div class="dialog-field"><label for="selectionName">Selection name</label><input id="selectionName" maxlength="120" required></div>
+    <div class="dialog-footer">
+      <button class="toolbar-button" type="button" data-close-dialog>Cancel</button>
+      <button class="primary" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+<section class="print-document" id="printDocument" aria-label="Printable saved selection"></section>
+<script>
+
+const models = [
+  {name:"MP-C-15A",ub:8,d:7,uc:0,total:15},
+  {name:"MP-C-18A",ub:10,d:8,uc:0,total:18},
+  {name:"MP-C-18B",ub:10,d:8,uc:0,total:18},
+  {name:"MP-C-24A",ub:16,d:4,uc:4,total:24},
+  {name:"MP-C-36A",ub:20,d:8,uc:8,total:36}
+];
+
+const storageKey = "mpCControllerSelector.savedSelections.v1";
+const workspaceCodeStorageKey = "mpCControllerSelector.workspaceCode.v1";
+const apiBaseUrl = document.querySelector('meta[name="mpc-selector-api-base-url"]')
+  ?.content.trim().replace(/\/+$/,"").replace("__API_BASE_URL__","");
+let savedRecords = [];
+let lastCalculation = null;
+let editingRecordId = null;
+let activeWorkspaceCode = "";
+let activeWorkspaceRevision = null;
+let workspaceRequestId = 0;
+function apiUrl(path) {
+  return `${apiBaseUrl}${path}`;
+}
+
+const modelChecks = document.getElementById("modelChecks");
+models.forEach((model,index) => {
+  const row = document.createElement("div");
+  row.className = "model-option";
+  const label = document.createElement("label");
+  label.className = "model-toggle";
+  label.innerHTML = `<input type="checkbox" checked id="m${index}"><span>${model.name}</span>`;
+  const quantity = document.createElement("input");
+  quantity.type = "number";
+  quantity.min = "0";
+  quantity.max = "120";
+  quantity.step = "1";
+  quantity.value = "0";
+  quantity.id = `forced${index}`;
+  quantity.className = "forced-quantity";
+  quantity.setAttribute("aria-label", `Forced quantity for ${model.name}`);
+  quantity.title = "Exact quantity to include; 0 lets the optimizer choose.";
+  row.append(label,quantity);
+  modelChecks.appendChild(row);
+});
+
+const help = {
+  fewest:"Minimum controller count. Ties are resolved by lower unused capacity, then fewer model types.",
+  least:"Minimum combined spare UB + DO + UC capacity. Ties are resolved by fewer controllers, then fewer model types.",
+  largest:"Minimum controller count, then prefer larger models in this order: 36A → 24A → 18B → 18A → 15A.",
+  balanced:"Minimum number of different controller models. Ties are resolved by fewer controllers, then lower unused capacity."
+};
+document.getElementById("objective").addEventListener("change", event => {
+  document.getElementById("objectiveHelp").textContent = help[event.target.value];
+});
+
+function readNumber(id, {integer=false}={}) {
+  const raw = document.getElementById(id).value.trim();
+  if (raw === "") return NaN;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || (integer && !Number.isInteger(value))) return NaN;
+  return value;
+}
+function bufferedRequirement(pointsId, bufferId) {
+  const points = readNumber(pointsId,{integer:true});
+  const buffer = readNumber(bufferId);
+  if (!Number.isFinite(points) || !Number.isFinite(buffer)) return NaN;
+  return Math.ceil(points * (1 + buffer / 100));
+}
+function selectedModels() {
+  return models.map((model,index)=>({...model,index}))
+    .filter(model=>document.getElementById(`m${model.index}`).checked);
+}
+function showError(message) {
+  document.getElementById("placeholder").style.display = "none";
+  document.getElementById("resultsData").style.display = "block";
+  const mark=document.getElementById("statusMark");
+  mark.textContent="!";
+  mark.classList.add("error");
+  const status=document.getElementById("status");
+  status.textContent=message;
+  status.classList.add("error");
+  ["totalUnits","modelCount","totalIO"].forEach(id=>document.getElementById(id).textContent="—");
+  document.getElementById("outputRows").innerHTML="";
+  document.getElementById("capacityRows").innerHTML="";
+  document.getElementById("method").textContent="";
+}
+function isBetter(candidate,best,objective) {
+  if (!best) return true;
+  if (objective === "fewest") {
+    return candidate.n < best.n || (candidate.n === best.n &&
+      (candidate.excess < best.excess || (candidate.excess === best.excess && candidate.distinct < best.distinct)));
+  }
+  if (objective === "least") {
+    return candidate.excess < best.excess || (candidate.excess === best.excess &&
+      (candidate.n < best.n || (candidate.n === best.n && candidate.distinct < best.distinct)));
+  }
+  if (objective === "balanced") {
+    return candidate.distinct < best.distinct || (candidate.distinct === best.distinct &&
+      (candidate.n < best.n || (candidate.n === best.n && candidate.excess < best.excess)));
+  }
+  if (objective === "largest") {
+    if (candidate.n !== best.n) return candidate.n < best.n;
+    // Model list is ordered from smallest to largest. Prefer more of the largest model first.
+    for (let i=candidate.counts.length-1;i>=0;i--) {
+      if (candidate.counts[i] !== best.counts[i]) return candidate.counts[i] > best.counts[i];
+    }
+    return candidate.excess < best.excess;
+  }
+  return false;
+}
+function solve() {
+  lastCalculation=null;
+  updateSaveButton();
+  const required = {
+    ub:bufferedRequirement("ub","ubbuf"),
+    d:bufferedRequirement("do","dobuf"),
+    uc:bufferedRequirement("uc","ucbuf")
+  };
+  if (Object.values(required).some(value=>!Number.isFinite(value))) {
+    showError("Enter whole, non-negative point counts and non-negative buffer percentages.");
+    return;
+  }
+  const eligible=selectedModels();
+  const limit=readNumber("maxN",{integer:true});
+  if (!Number.isFinite(limit) || limit<1 || limit>120) {
+    showError("Search limit must be a whole number between 1 and 120.");
+    return;
+  }
+  const forcedCounts=models.map((_,index)=>readNumber(`forced${index}`,{integer:true}));
+  if (forcedCounts.some(quantity=>!Number.isFinite(quantity)||quantity>120)) {
+    showError("Forced quantities must be whole numbers between 0 and 120.");
+    return;
+  }
+  if (forcedCounts.some((quantity,index)=>quantity>0 && !document.getElementById(`m${index}`).checked)) {
+    showError("Enable each controller model that has a forced quantity.");
+    return;
+  }
+  const forcedTotal=forcedCounts.reduce((sum,quantity)=>sum+quantity,0);
+  if (forcedTotal>limit) {
+    showError(`Forced quantities total ${forcedTotal} controllers, exceeding the search limit of ${limit}.`);
+    return;
+  }
+  if (!eligible.length && forcedTotal===0) { showError("Select at least one controller model."); return; }
+  const forcedCapacity=models.reduce((sum,model,index)=>({
+    ub:sum.ub+forcedCounts[index]*model.ub,
+    d:sum.d+forcedCounts[index]*model.d,
+    uc:sum.uc+forcedCounts[index]*model.uc
+  }),{ub:0,d:0,uc:0});
+  const remainingRequired={
+    ub:Math.max(0,required.ub-forcedCapacity.ub),
+    d:Math.max(0,required.d-forcedCapacity.d),
+    uc:Math.max(0,required.uc-forcedCapacity.uc)
+  };
+  const autoModels=eligible;
+  const maxUB=autoModels.length ? Math.max(...autoModels.map(model=>model.ub)) : 0;
+  const maxDO=autoModels.length ? Math.max(...autoModels.map(model=>model.d)) : 0;
+  const maxUC=autoModels.length ? Math.max(...autoModels.map(model=>model.uc)) : 0;
+  if ((remainingRequired.ub>0 && maxUB===0) || (remainingRequired.d>0 && maxDO===0) || (remainingRequired.uc>0 && maxUC===0)) {
+    if (!autoModels.length) {
+      showError("The forced quantities do not meet the point requirements. Increase a forced quantity or enable another controller model.");
+      return;
+    }
+    showError("The selected models cannot supply one or more required point types. Enable a model with the necessary capacity.");
+    return;
+  }
+  const lowerBound=Math.max(
+    remainingRequired.ub ? Math.ceil(remainingRequired.ub/maxUB) : 0,
+    remainingRequired.d ? Math.ceil(remainingRequired.d/maxDO) : 0,
+    remainingRequired.uc ? Math.ceil(remainingRequired.uc/maxUC) : 0
+  );
+  const objective=document.getElementById("objective").value;
+  let best=null, examined=0;
+  const counts=Array(autoModels.length).fill(0);
+  const suffixMax=Array(autoModels.length+1);
+  suffixMax[autoModels.length]={ub:0,d:0,uc:0};
+  for (let i=autoModels.length-1;i>=0;i--) {
+    const next=suffixMax[i+1];
+    suffixMax[i]={ub:Math.max(autoModels[i].ub,next.ub),d:Math.max(autoModels[i].d,next.d),uc:Math.max(autoModels[i].uc,next.uc)};
+  }
+  function assess(autoN,ub,d,uc) {
+    examined++;
+    const capacities={ub:ub+forcedCapacity.ub,d:d+forcedCapacity.d,uc:uc+forcedCapacity.uc};
+    if (capacities.ub<required.ub || capacities.d<required.d || capacities.uc<required.uc) return;
+    const excess=(capacities.ub-required.ub)+(capacities.d-required.d)+(capacities.uc-required.uc);
+    const allCounts=forcedCounts.slice();
+    autoModels.forEach((model,index)=>allCounts[model.index]+=counts[index]);
+    const distinct=allCounts.filter(quantity=>quantity>0).length;
+    const candidate={n:forcedTotal+autoN,...capacities,excess,distinct,counts:allCounts};
+    if (isBetter(candidate,best,objective)) best=candidate;
+  }
+  function enumerateForTotal(autoN) {
+    function visit(index,left,ub,d,uc) {
+      if (index===autoModels.length-1) {
+        counts[index]=left;
+        assess(autoN,ub+left*autoModels[index].ub,d+left*autoModels[index].d,uc+left*autoModels[index].uc);
+        return;
+      }
+      const remainingMax=suffixMax[index+1], model=autoModels[index];
+      for (let quantity=0;quantity<=left;quantity++) {
+        counts[index]=quantity;
+        const slots=left-quantity;
+        const nextUB=ub+quantity*model.ub;
+        const nextDO=d+quantity*model.d;
+        const nextUC=uc+quantity*model.uc;
+        if (nextUB+slots*remainingMax.ub<remainingRequired.ub ||
+            nextDO+slots*remainingMax.d<remainingRequired.d ||
+            nextUC+slots*remainingMax.uc<remainingRequired.uc) continue;
+        visit(index+1,slots,nextUB,nextDO,nextUC);
+      }
+    }
+    if (autoModels.length===1) {
+      counts[0]=autoN;
+      assess(autoN,autoN*autoModels[0].ub,autoN*autoModels[0].d,autoN*autoModels[0].uc);
+    } else if (autoModels.length>1) visit(0,autoN,0,0,0);
+  }
+  const maxAuto=limit-forcedTotal;
+  if (!autoModels.length) {
+    assess(0,0,0,0);
+  } else for (let n=lowerBound;n<=maxAuto;n++) {
+    enumerateForTotal(n);
+    if ((objective==="fewest" || objective==="largest") && best && best.n===forcedTotal+n) break;
+  }
+  if (!best) {
+    showError(`No feasible combination was found within the search limit of ${limit} controllers. Increase the limit or enable additional models.`);
+    return;
+  }
+  renderResults(best,eligible,required,objective,examined,forcedTotal);
+  lastCalculation={
+    inputs:captureInputs(),
+    required,
+    quantities:eligible.map(model=>({model:model.name,quantity:best.counts[model.index]})),
+    totalControllers:best.n,
+    distinctModels:best.distinct,
+    installedIO:best.counts.reduce((sum,quantity,index)=>sum+quantity*models[index].total,0),
+    capacities:{ub:best.ub,d:best.d,uc:best.uc},
+    examined
+  };
+  updateSaveButton();
+}
+function renderResults(best,selected,required,objective,examined,forcedTotal) {
+  document.getElementById("placeholder").style.display="none";
+  document.getElementById("resultsData").style.display="block";
+  const mark=document.getElementById("statusMark");
+  mark.textContent="✓";
+  mark.classList.remove("error");
+  const status=document.getElementById("status");
+  status.textContent="The selected combination meets or exceeds all buffered UB, DO and UC requirements.";
+  status.classList.remove("error");
+  const installedIO=best.counts.reduce((sum,quantity,index)=>sum+quantity*models[index].total,0);
+  document.getElementById("totalUnits").textContent=best.n.toLocaleString();
+  document.getElementById("modelCount").textContent=best.distinct.toLocaleString();
+  document.getElementById("totalIO").textContent=installedIO.toLocaleString();
+  document.getElementById("outputRows").innerHTML=selected.map(model=>({model,quantity:best.counts[model.index]}))
+    .filter(row=>row.quantity>0)
+    .map(row=>`<tr><td>${row.model.name}</td><td class="num">${row.quantity}</td><td class="num">${row.quantity*row.model.ub}</td><td class="num">${row.quantity*row.model.d}</td><td class="num">${row.quantity*row.model.uc}</td></tr>`).join("");
+  const capacities=[["UB",required.ub,best.ub],["DO",required.d,best.d],["UC",required.uc,best.uc]];
+  document.getElementById("capacityRows").innerHTML=capacities.map(([type,need,have])=>
+    `<tr><td>${type}</td><td class="num">${need}</td><td class="num">${have}</td><td class="num">${have-need}</td></tr>`
+  ).join("");
+  const descriptions={
+    fewest:"Fewest controllers; ties: least spare capacity, then fewest model types.",
+    least:"Least combined spare UB + DO + UC capacity; ties: fewer controllers, then fewer model types.",
+    largest:"Fewest controllers, then preference for larger models (36A → 24A → 18B → 18A → 15A).",
+    balanced:"Fewest different model types; ties: fewer controllers, then least spare capacity."
+  };
+  const forcedNote=forcedTotal ? ` Includes at least ${forcedTotal} required controller${forcedTotal===1?"":"s"}.` : "";
+  document.getElementById("method").textContent=descriptions[objective]+forcedNote+` ${examined.toLocaleString()} candidate combinations checked.`;
+}
+document.getElementById("solve").addEventListener("click",solve);
+
+function captureInputs() {
+  return {
+    ub:Number(document.getElementById("ub").value),
+    ubBuffer:Number(document.getElementById("ubbuf").value),
+    do:Number(document.getElementById("do").value),
+    doBuffer:Number(document.getElementById("dobuf").value),
+    uc:Number(document.getElementById("uc").value),
+    ucBuffer:Number(document.getElementById("ucbuf").value),
+    forcedQuantities:Object.fromEntries(models
+      .map((model,index)=>[model.name,Number(document.getElementById(`forced${index}`).value)])
+      .filter(([,quantity])=>quantity>0)),
+    models:selectedModels().map(model=>model.name),
+    objective:document.getElementById("objective").value,
+    maxN:Number(document.getElementById("maxN").value)
+  };
+}
+function makeId() {
+  return globalThis.crypto?.randomUUID?.() || `selection-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+function showNotice(message,isError=false) {
+  const notice=document.getElementById("savedNotice");
+  notice.textContent=message;
+  notice.classList.toggle("error",isError);
+}
+function updateSaveButton() {
+  const button=document.getElementById("saveSelection");
+  const enteredCode=document.getElementById("workspaceCode").value.normalize("NFC").toUpperCase();
+  const connected=!activeWorkspaceCode || enteredCode===activeWorkspaceCode.normalize("NFC").toUpperCase();
+  const record=editingRecordId && savedRecords.find(item=>item.id===editingRecordId);
+  button.textContent=record ? "Update saved selection" : "Save current selection";
+  button.disabled=!lastCalculation || !activeWorkspaceCode || !connected;
+  button.title=!activeWorkspaceCode ? "Connect to a workspace before saving." :
+    !connected ? "Connect to the entered code before saving." :
+    lastCalculation ? "" : "Calculate a valid selection before saving.";
+  document.getElementById("importDatabase").disabled=!activeWorkspaceCode || !connected;
+  document.getElementById("exportDatabase").disabled=!activeWorkspaceCode || !connected;
+  document.getElementById("savedList").inert=!activeWorkspaceCode || !connected;
+  document.getElementById("recordDialogActions").inert=!activeWorkspaceCode || !connected;
+  document.getElementById("disconnectWorkspace").hidden=!activeWorkspaceCode;
+}
+async function persistRecords(nextRecords,message) {
+  const enteredCode=document.getElementById("workspaceCode").value.normalize("NFC").toUpperCase();
+  if (!activeWorkspaceCode || enteredCode!==activeWorkspaceCode.normalize("NFC").toUpperCase()) {
+    showNotice("Connect to a workspace before saving selections.",true);
+    return false;
+  }
+  try {
+    const response=await fetch(apiUrl("/api/selections"),{
+      method:"PUT",
+      headers:{"Content-Type":"application/json","X-Session-Code":encodeURIComponent(activeWorkspaceCode),
+        "X-Workspace-Revision":String(activeWorkspaceRevision)},
+      body:JSON.stringify(nextRecords)
+    });
+    if (!response.ok) {
+      const details=await response.json().catch(()=>({}));
+      if (response.status===409) {
+        throw new Error("This workspace changed elsewhere. Reconnect with the code to load the latest version, then retry.");
+      }
+      throw new Error(details.error||`HTTP ${response.status}`);
+    }
+    const result=await response.json();
+    activeWorkspaceRevision=result.revision;
+  } catch (error) {
+    showNotice(`Could not save selections to this workspace: ${error.message}`,true);
+    return false;
+  }
+  savedRecords=nextRecords;
+  renderSavedRecords();
+  if (message) showNotice(message);
+  return true;
+}
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+}
+function dateLabel(value) {
+  const date=new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown date" : date.toLocaleString();
+}
+function validateRecord(record) {
+  const objectiveValues=["fewest","least","largest","balanced"];
+  const input=record?.inputs, result=record?.result;
+  const knownModels=models.map(model=>model.name);
+  if (!record || typeof record.id!=="string" || !record.id || typeof record.name!=="string" ||
+      !record.name.trim() || record.name.length>120 || typeof record.createdAt!=="string" ||
+      typeof record.updatedAt!=="string" || !input || !result) return false;
+  const numericInputs=[input.ub,input.ubBuffer,input.do,input.doBuffer,input.uc,input.ucBuffer,input.maxN];
+  if (numericInputs.some(value=>!Number.isFinite(value)||value<0) ||
+      !Number.isInteger(input.ub)||!Number.isInteger(input.do)||!Number.isInteger(input.uc) ||
+      !Number.isInteger(input.maxN)||input.maxN<1||input.maxN>120 ||
+      !objectiveValues.includes(input.objective) || !Array.isArray(input.models) ||
+      !input.models.length || input.models.some(name=>!knownModels.includes(name)) ||
+      new Set(input.models).size!==input.models.length) return false;
+  const forcedQuantities=input.forcedQuantities??{};
+  if (!forcedQuantities || typeof forcedQuantities!=="object" || Array.isArray(forcedQuantities) ||
+      Object.entries(forcedQuantities).some(([name,quantity])=>!knownModels.includes(name) ||
+        !Number.isSafeInteger(quantity) || quantity<0 || quantity>120 ||
+        (quantity>0 && !input.models.includes(name))) ||
+      Object.values(forcedQuantities).reduce((sum,quantity)=>sum+quantity,0)>input.maxN) return false;
+  if (!Array.isArray(result.quantities) || result.quantities.length!==input.models.length ||
+      !result.quantities.every(item=>item && input.models.includes(item.model) &&
+        Number.isSafeInteger(item.quantity) && item.quantity>=0) ||
+      new Set(result.quantities.map(item=>item.model)).size!==result.quantities.length ||
+      !result.required || !result.capacities) return false;
+  if (Object.entries(forcedQuantities).some(([name,quantity])=>
+    quantity>0 && (result.quantities.find(item=>item.model===name)?.quantity??0)<quantity)) return false;
+  const expected={ub:Math.ceil(input.ub*(1+input.ubBuffer/100)),
+    d:Math.ceil(input.do*(1+input.doBuffer/100)),uc:Math.ceil(input.uc*(1+input.ucBuffer/100))};
+  if (["ub","d","uc"].some(key=>result.required[key]!==expected[key])) return false;
+  const totals=result.quantities.reduce((sum,item)=>{
+    const model=models.find(entry=>entry.name===item.model);
+    return {units:sum.units+item.quantity,io:sum.io+item.quantity*model.total,
+      ub:sum.ub+item.quantity*model.ub,d:sum.d+item.quantity*model.d,uc:sum.uc+item.quantity*model.uc};
+  },{units:0,io:0,ub:0,d:0,uc:0});
+  return Number.isSafeInteger(result.totalControllers) && result.totalControllers===totals.units &&
+    Number.isSafeInteger(result.distinctModels) && result.distinctModels===result.quantities.filter(item=>item.quantity>0).length &&
+    Number.isSafeInteger(result.installedIO) && result.installedIO===totals.io &&
+    ["ub","d","uc"].every(key=>Number.isSafeInteger(result.capacities[key]) &&
+      result.capacities[key]===totals[key] && totals[key]>=expected[key]) &&
+    Number.isSafeInteger(result.examined) && result.examined>=0;
+}
+function renderSavedRecords() {
+  const list=document.getElementById("savedList");
+  list.replaceChildren();
+  document.getElementById("savedCount").textContent=`${savedRecords.length} saved`;
+  if (!savedRecords.length) {
+    const empty=document.createElement("p");
+    empty.className="saved-empty";
+    empty.textContent=activeWorkspaceCode ?
+      "No saved selections in this workspace yet. Calculate a selection, then save it here." :
+      "Connect to a workspace code or create a new one to view saved selections.";
+    list.appendChild(empty);
+    updateSaveButton();
+    return;
+  }
+  for (const record of [...savedRecords].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))) {
+    const card=document.createElement("article");
+    card.className="saved-card";
+    const main=document.createElement("div");
+    main.className="saved-card-main";
+    const title=document.createElement("h3");
+    title.className="saved-card-name";
+    title.textContent=record.name;
+    const meta=document.createElement("p");
+    meta.className="saved-card-meta";
+    meta.textContent=`${record.result.totalControllers} controllers · ${record.result.distinctModels} models · Updated ${dateLabel(record.updatedAt)}`;
+    main.append(title,meta);
+    const actions=document.createElement("div");
+    actions.className="saved-card-actions";
+    for (const [action,label] of [["preview","Preview"],["edit","Edit"],["duplicate","Duplicate"],["csv","CSV"],["pdf","PDF"],["delete","Delete"]]) {
+      const button=document.createElement("button");
+      button.type="button";
+      button.className=`small-button${action==="delete"?" danger":""}`;
+      button.dataset.action=action;
+      button.dataset.recordId=record.id;
+      button.textContent=label;
+      actions.appendChild(button);
+    }
+    card.append(main,actions);
+    list.appendChild(card);
+  }
+  updateSaveButton();
+}
+function appendTable(container,headers,rows,columnWidths) {
+  const table=document.createElement("table");
+  if (columnWidths) {
+    const colgroup=document.createElement("colgroup");
+    for (const width of columnWidths) {
+      const column=document.createElement("col");
+      column.style.width=`${width}%`;
+      colgroup.appendChild(column);
+    }
+    table.appendChild(colgroup);
+  }
+  const thead=document.createElement("thead");
+  const headRow=document.createElement("tr");
+  for (const header of headers) {
+    const cell=document.createElement("th");
+    cell.textContent=header;
+    headRow.appendChild(cell);
+  }
+  thead.appendChild(headRow);
+  const tbody=document.createElement("tbody");
+  for (const values of rows) {
+    const row=document.createElement("tr");
+    for (const [index,value] of values.entries()) {
+      const cell=document.createElement("td");
+      cell.textContent=String(value);
+      if (index>0) cell.className="num";
+      row.appendChild(cell);
+    }
+    tbody.appendChild(row);
+  }
+  table.append(thead,tbody);
+  container.appendChild(table);
+}
+function fillRecordPreview(record) {
+  const content=document.getElementById("recordDialogContent");
+  content.replaceChildren();
+  const intro=document.createElement("p");
+  intro.className="saved-card-meta";
+  intro.textContent=`Created ${dateLabel(record.createdAt)} · Updated ${dateLabel(record.updatedAt)} · Priority: ${record.inputs.objective} · Forced quantities: ${forcedQuantityLabel(record.inputs)}`;
+  content.appendChild(intro);
+  const metrics=document.createElement("div");
+  metrics.className="metrics";
+  for (const [label,value] of [["Total controllers",record.result.totalControllers],
+    ["Different models",record.result.distinctModels],["Installed I/O",record.result.installedIO]]) {
+    const metric=document.createElement("div");
+    metric.className="metric";
+    const metricLabel=document.createElement("span");
+    metricLabel.className="metric-label";
+    metricLabel.textContent=label;
+    const metricValue=document.createElement("strong");
+    metricValue.className="metric-value";
+    metricValue.textContent=value.toLocaleString();
+    metric.append(metricLabel,metricValue);
+    metrics.appendChild(metric);
+  }
+  content.appendChild(metrics);
+  const inputs=record.inputs;
+  const required=record.result.required;
+  appendTable(content,["Point type","Entered","Buffer (%)","Buffered requirement"],[
+    ["UB",inputs.ub,inputs.ubBuffer,required.ub],["DO",inputs.do,inputs.doBuffer,required.d],["UC",inputs.uc,inputs.ucBuffer,required.uc]
+  ],[22,18,22,38]);
+  const quantities=record.result.quantities.filter(item=>item.quantity>0).map(item=>{
+    const model=models.find(entry=>entry.name===item.model);
+    return [item.model,item.quantity,item.quantity*model.ub,item.quantity*model.d,item.quantity*model.uc];
+  });
+  appendTable(content,["Point type","Required","Installed","Spare"],[
+    ["UB",required.ub,record.result.capacities.ub,record.result.capacities.ub-required.ub],
+    ["DO",required.d,record.result.capacities.d,record.result.capacities.d-required.d],
+    ["UC",required.uc,record.result.capacities.uc,record.result.capacities.uc-required.uc]
+  ],[22,18,22,38]);
+  appendTable(content,["Controller model","Qty.","UB","DO","UC"],quantities,[40,15,15,15,15]);
+}
+function openPreview(record) {
+  document.getElementById("recordDialogTitle").textContent=record.name;
+  fillRecordPreview(record);
+  const actions=document.getElementById("recordDialogActions");
+  actions.replaceChildren();
+  for (const [action,label] of [["edit","Edit selection"],["duplicate","Duplicate"],["csv","Download CSV"],["pdf","Print / Save PDF"]]) {
+    const button=document.createElement("button");
+    button.type="button";
+    button.className=action==="pdf"?"primary":"toolbar-button";
+    button.dataset.action=action;
+    button.dataset.recordId=record.id;
+    button.textContent=label;
+    actions.appendChild(button);
+  }
+  const dialog=document.getElementById("recordDialog");
+  if (!dialog.open) dialog.showModal();
+}
+function setInputs(record) {
+  const input=record.inputs;
+  for (const [id,value] of [["ub",input.ub],["ubbuf",input.ubBuffer],["do",input.do],["dobuf",input.doBuffer],
+    ["uc",input.uc],["ucbuf",input.ucBuffer],["maxN",input.maxN]]) {
+    document.getElementById(id).value=value;
+  }
+  for (const [index,model] of models.entries()) {
+    document.getElementById(`m${index}`).checked=input.models.includes(model.name);
+    document.getElementById(`forced${index}`).value=input.forcedQuantities?.[model.name]||0;
+  }
+  document.getElementById("objective").value=input.objective;
+  document.getElementById("objective").dispatchEvent(new Event("change"));
+}
+function editRecord(record) {
+  editingRecordId=record.id;
+  setInputs(record);
+  solve();
+  if (lastCalculation) {
+    showNotice(`Loaded “${record.name}”. Edit the settings, calculate again, then update the saved selection.`);
+    document.querySelector(".sidebar").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+async function duplicateRecord(record) {
+  const now=new Date().toISOString();
+  const duplicate={...record,id:makeId(),name:`${record.name} copy`,createdAt:now,updatedAt:now};
+  if (await persistRecords([...savedRecords,duplicate],`Duplicated “${record.name}”.`)) openPreview(duplicate);
+}
+function csvCell(value) {
+  return `"${String(value).replace(/"/g,'""')}"`;
+}
+function forcedQuantityLabel(input) {
+  const entries=Object.entries(input.forcedQuantities||{});
+  return entries.length ? entries.map(([name,quantity])=>`${name} × ${quantity}`).join(", ") : "None";
+}
+function downloadBlob(blob,filename) {
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url;
+  link.download=filename;
+  link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function fileSlug(name) {
+  return name.trim().replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"selection";
+}
+function exportCSV(record) {
+  const {inputs,result}=record;
+  const objectiveLabels={fewest:"Fewest controllers",least:"Least unused capacity",largest:"Prefer larger models",balanced:"Fewest model types"};
+  const rows=[
+    ["MP-C CONTROLLER SELECTION"],
+    ["Selection",record.name],
+    ["Created",dateLabel(record.createdAt)],
+    ["Updated",dateLabel(record.updatedAt)],
+    ["Selection priority",objectiveLabels[inputs.objective]],
+    ["Forced quantities",forcedQuantityLabel(inputs)],
+    ["Total controllers",result.totalControllers],
+    ["Different models",result.distinctModels],
+    ["Installed I/O",result.installedIO],
+    [],
+    ["POINT REQUIREMENTS"],
+    ["Point type","Entered points","Buffer (%)","Buffered requirement"],
+    ["UB",inputs.ub,inputs.ubBuffer,result.required.ub],
+    ["DO",inputs.do,inputs.doBuffer,result.required.d],
+    ["UC",inputs.uc,inputs.ucBuffer,result.required.uc],
+    [],
+    ["CONTROLLER QUANTITIES"],
+    ["Controller model","Quantity","Installed UB","Installed DO","Installed UC","Installed I/O"]
+  ];
+  const controllerRows=result.quantities.filter(item=>item.quantity>0).map(item=>{
+    const model=models.find(entry=>entry.name===item.model);
+    return [item.model,item.quantity,item.quantity*model.ub,item.quantity*model.d,item.quantity*model.uc,item.quantity*model.total];
+  });
+  rows.push(...(controllerRows.length?controllerRows:[["No controllers selected"]]));
+  rows.push(
+    ["TOTAL",result.totalControllers,result.capacities.ub,result.capacities.d,result.capacities.uc,result.installedIO],
+    [],
+    ["POINT CAPACITY"],
+    ["Point type","Required","Installed","Spare"],
+    ["UB",result.required.ub,result.capacities.ub,result.capacities.ub-result.required.ub],
+    ["DO",result.required.d,result.capacities.d,result.capacities.d-result.required.d],
+    ["UC",result.required.uc,result.capacities.uc,result.capacities.uc-result.required.uc]
+  );
+  const csv="\uFEFF"+rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
+  downloadBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),`${fileSlug(record.name)}.csv`);
+}
+function printRecord(record) {
+  const print=document.getElementById("printDocument");
+  const input=record.inputs, result=record.result;
+  const controllerRows=result.quantities.filter(item=>item.quantity>0).map(item=>{
+    const model=models.find(entry=>entry.name===item.model);
+    return `<tr><td>${item.model}</td><td>${item.quantity}</td><td>${item.quantity*model.ub}</td><td>${item.quantity*model.d}</td><td>${item.quantity*model.uc}</td></tr>`;
+  }).join("");
+  const pointRows=[["UB",result.required.ub,result.capacities.ub],["DO",result.required.d,result.capacities.d],["UC",result.required.uc,result.capacities.uc]]
+    .map(([type,need,have])=>`<tr><td>${type}</td><td>${need}</td><td>${have}</td><td>${have-need}</td></tr>`).join("");
+  print.innerHTML=`<h1>${escapeHTML(record.name)}</h1>
+    <p class="print-meta">Schneider Electric MP-C Controller Selector · Created ${escapeHTML(dateLabel(record.createdAt))} · Updated ${escapeHTML(dateLabel(record.updatedAt))}</p>
+    <p>Point requirements (entered): UB ${input.ub} (+${input.ubBuffer}%), DO ${input.do} (+${input.doBuffer}%), UC ${input.uc} (+${input.ucBuffer}%).</p>
+    <p>Buffered requirements: UB ${result.required.ub}, DO ${result.required.d}, UC ${result.required.uc}. Priority: ${escapeHTML(input.objective)}.</p>
+    <p>Forced quantities: ${escapeHTML(forcedQuantityLabel(input))}.</p>
+    <p>Total controllers: ${result.totalControllers} · Different models: ${result.distinctModels} · Installed I/O: ${result.installedIO}</p>
+    <h2>Controller quantities</h2><table><thead><tr><th>Controller model</th><th>Qty.</th><th>UB</th><th>DO</th><th>UC</th></tr></thead><tbody>${controllerRows}</tbody></table>
+    <h2>Point capacity</h2><table><thead><tr><th>Type</th><th>Required</th><th>Installed</th><th>Spare</th></tr></thead><tbody>${pointRows}</tbody></table>
+    <p>Engineering note: Verify output electrical type, signal compatibility, application suitability, power and project standards before procurement.</p>`;
+  window.print();
+}
+async function handleRecordAction(action,id) {
+  const record=savedRecords.find(item=>item.id===id);
+  if (!record) return;
+  if (action==="preview") openPreview(record);
+  if (action==="edit") {
+    const dialog=document.getElementById("recordDialog");
+    if (dialog.open) dialog.close();
+    editRecord(record);
+  }
+  if (action==="duplicate") await duplicateRecord(record);
+  if (action==="csv") exportCSV(record);
+  if (action==="pdf") printRecord(record);
+  if (action==="delete" && window.confirm(`Delete “${record.name}” from this browser?`)) {
+    if (await persistRecords(savedRecords.filter(item=>item.id!==id),`Deleted “${record.name}”.`)) {
+      if (editingRecordId===id) { editingRecordId=null; updateSaveButton(); }
+    }
+  }
+}
+function startSave() {
+  if (!lastCalculation) {
+    showNotice("Calculate a valid controller selection before saving.",true);
+    return;
+  }
+  const existing=editingRecordId && savedRecords.find(item=>item.id===editingRecordId);
+  document.getElementById("selectionName").value=existing?.name||"";
+  document.getElementById("saveDialogTitle").textContent=existing ? "Update saved selection" : "Save selection";
+  document.getElementById("saveDialog").showModal();
+  document.getElementById("selectionName").focus();
+}
+function createRecord(name) {
+  const now=new Date().toISOString();
+  return {id:makeId(),name:name.trim(),createdAt:now,updatedAt:now,inputs:lastCalculation.inputs,result:{
+    required:lastCalculation.required,quantities:lastCalculation.quantities,
+    totalControllers:lastCalculation.totalControllers,distinctModels:lastCalculation.distinctModels,
+    installedIO:lastCalculation.installedIO,capacities:lastCalculation.capacities,examined:lastCalculation.examined
+  }};
+}
+document.getElementById("saveSelection").addEventListener("click",startSave);
+document.getElementById("saveForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const name=document.getElementById("selectionName").value.trim();
+  if (!name || !lastCalculation) return;
+  const existingIndex=savedRecords.findIndex(record=>record.id===editingRecordId);
+  const record=createRecord(name);
+  let next;
+  if (existingIndex>=0) {
+    record.id=savedRecords[existingIndex].id;
+    record.createdAt=savedRecords[existingIndex].createdAt;
+    record.updatedAt=new Date().toISOString();
+    next=savedRecords.map((item,index)=>index===existingIndex?record:item);
+  } else next=[...savedRecords,record];
+  if (await persistRecords(next,existingIndex>=0?`Updated “${name}”.`:`Saved “${name}”.`)) {
+    editingRecordId=null;
+    updateSaveButton();
+    document.getElementById("saveDialog").close();
+  }
+});
+document.querySelectorAll("[data-close-dialog]").forEach(button=>button.addEventListener("click",()=>button.closest("dialog").close()));
+document.getElementById("savedList").addEventListener("click",event=>{
+  const button=event.target.closest("[data-action]");
+  if (button) void handleRecordAction(button.dataset.action,button.dataset.recordId);
+});
+document.getElementById("recordDialogActions").addEventListener("click",event=>{
+  const button=event.target.closest("[data-action]");
+  if (button) void handleRecordAction(button.dataset.action,button.dataset.recordId);
+});
+document.getElementById("importDatabase").addEventListener("click",()=>document.getElementById("databaseFile").click());
+document.getElementById("databaseFile").addEventListener("change",async event=>{
+  const file=event.target.files[0];
+  if (!file) return;
+  try {
+    const database=JSON.parse(await file.text());
+    if (database?.format!=="mp-c-controller-selector" || database.version!==1 || !Array.isArray(database.records) ||
+        !database.records.every(validateRecord) ||
+        new Set(database.records.map(record=>record.id)).size!==database.records.length) {
+      throw new Error("This is not a valid MP-C Controller Selector database (version 1).");
+    }
+    const existingIds=new Set(savedRecords.map(record=>record.id));
+    const imported=database.records.map(record=>{
+      if (!existingIds.has(record.id)) { existingIds.add(record.id); return record; }
+      const copy={...record,id:makeId()};
+      existingIds.add(copy.id);
+      return copy;
+    });
+    if (await persistRecords([...savedRecords,...imported],`Imported ${imported.length} selection${imported.length===1?"":"s"} from ${file.name}.`)) {
+      editingRecordId=null;
+      updateSaveButton();
+    }
+  } catch (error) {
+    showNotice(`Could not import database: ${error.message}`,true);
+  } finally {
+    event.target.value="";
+  }
+});
+document.getElementById("exportDatabase").addEventListener("click",()=>{
+  if (!activeWorkspaceCode) {
+    showNotice("Connect to a workspace before exporting selections.",true);
+    return;
+  }
+  const database={format:"mp-c-controller-selector",version:1,exportedAt:new Date().toISOString(),records:savedRecords};
+  downloadBlob(new Blob([JSON.stringify(database,null,2)],{type:"application/json"}),"mp-c-controller-selector-database.json");
+  showNotice(`Exported ${savedRecords.length} saved selection${savedRecords.length===1?"":"s"}.`);
+});
+for (const id of ["ub","ubbuf","do","dobuf","uc","ucbuf","maxN","objective",...models.map((_,index)=>`forced${index}`)]) {
+  document.getElementById(id).addEventListener("input",()=>{lastCalculation=null;updateSaveButton();});
+}
+modelChecks.addEventListener("change",()=>{lastCalculation=null;updateSaveButton();});
+function setWorkspaceStatus(message,isError=false) {
+  const status=document.getElementById("workspaceCodeHelp");
+  status.textContent=message;
+  status.classList.toggle("error",isError);
+}
+function validWorkspaceCode(value) {
+  const normalized=value.normalize("NFC");
+  const characters=Array.from(normalized);
+  return characters.length===8 && characters.every(character=>!/\s/u.test(character)&&!/\p{C}/u.test(character));
+}
+async function connectWorkspace(rawCode,{importBrowserRecords=false}={}) {
+  const code=rawCode.normalize("NFC");
+  if (!validWorkspaceCode(code)) {
+    setWorkspaceStatus("Enter exactly 8 printable Unicode characters without spaces.",true);
+    return false;
+  }
+  const requestId=++workspaceRequestId;
+  setWorkspaceStatus("Connecting to workspace…");
+  try {
+    const response=await fetch(apiUrl("/api/selections"),{
+      headers:{"X-Session-Code":encodeURIComponent(code)}
+    });
+    if (!response.ok) {
+      const details=await response.json().catch(()=>({}));
+      throw new Error(details.error||`HTTP ${response.status}`);
+    }
+    const workspace=await response.json();
+    if (requestId!==workspaceRequestId) return false;
+    const repositoryRecords=workspace.records;
+    if (!Array.isArray(repositoryRecords) || !repositoryRecords.every(validateRecord) ||
+        new Set(repositoryRecords.map(record=>record.id)).size!==repositoryRecords.length ||
+        !Number.isSafeInteger(workspace.revision) || workspace.revision<0) {
+      throw new Error("Workspace database contains invalid saved selections.");
+    }
+    activeWorkspaceCode=code;
+    activeWorkspaceRevision=workspace.revision;
+    savedRecords=repositoryRecords;
+    editingRecordId=null;
+    document.getElementById("workspaceCode").value=code;
+    try {
+      localStorage.setItem(workspaceCodeStorageKey,code);
+    } catch (error) {
+      setWorkspaceStatus(`Connected, but this browser could not remember the code: ${error.message}`,true);
+    }
+    updateSaveButton();
+    renderSavedRecords();
+    if (!importBrowserRecords) {
+      setWorkspaceStatus(`Connected. Anyone with this code can access this workspace. The code is remembered in this browser.`);
+      showNotice(`Loaded ${savedRecords.length} selection${savedRecords.length===1?"":"s"} from this workspace.`);
+      return true;
+    }
+
+    let browserRecords=[];
+    try {
+      const stored=localStorage.getItem(storageKey);
+      if (stored) {
+        browserRecords=JSON.parse(stored);
+        if (!Array.isArray(browserRecords) || !browserRecords.every(validateRecord) ||
+            new Set(browserRecords.map(record=>record.id)).size!==browserRecords.length) {
+          throw new Error("Browser-saved selections are invalid or from an unsupported version.");
+        }
+      }
+    } catch (error) {
+      showNotice(`Could not import existing browser selections: ${error.message}`,true);
+      setWorkspaceStatus("Connected. The code is remembered in this browser.",true);
+      return true;
+    }
+    const recordsById=new Map(repositoryRecords.map(record=>[record.id,record]));
+    let imported=0;
+    for (const record of browserRecords) {
+      if (!recordsById.has(record.id)) {
+        recordsById.set(record.id,record);
+        imported++;
+      }
+    }
+    if (imported && !await persistRecords([...recordsById.values()],
+      `Copied ${imported} existing browser selection${imported===1?"":"s"} into this workspace.`)) {
+      setWorkspaceStatus("Connected, but existing browser selections could not be copied. They remain in this browser.",true);
+      return true;
+    }
+    if (browserRecords.length) {
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (error) {
+        showNotice(`Selections were copied, but browser storage could not be cleared: ${error.message}`,true);
+      }
+    }
+    setWorkspaceStatus(`New workspace created and connected. Save this code to share access.`);
+    return true;
+  } catch (error) {
+    if (requestId===workspaceRequestId) {
+      if (activeWorkspaceCode) document.getElementById("workspaceCode").value=activeWorkspaceCode;
+      updateSaveButton();
+      setWorkspaceStatus(`Could not connect: ${error.message}`,true);
+    }
+    return false;
+  }
+}
+document.getElementById("workspaceCodeForm").addEventListener("submit",event=>{
+  event.preventDefault();
+  void connectWorkspace(document.getElementById("workspaceCode").value);
+});
+document.getElementById("workspaceCode").addEventListener("input",updateSaveButton);
+async function createWorkspace({custom=false,button}={}) {
+  if (activeWorkspaceCode && !window.confirm("Create a separate workspace? The current saved selections will stay in their existing workspace.")) return;
+  const code=document.getElementById("workspaceCode").value.normalize("NFC");
+  if (custom && !validWorkspaceCode(code)) {
+    setWorkspaceStatus("Custom codes must be exactly 8 printable Unicode characters without spaces.",true);
+    return;
+  }
+  if (button) button.disabled=true;
+  setWorkspaceStatus("Creating a new workspace code…");
+  try {
+    const response=await fetch(apiUrl("/api/workspaces"),{
+      method:"POST",
+      ...(custom?{headers:{"Content-Type":"application/json"},body:JSON.stringify({code})}:{})
+    });
+    const result=await response.json();
+    if (!response.ok) throw new Error(result.error||`HTTP ${response.status}`);
+    if (!validWorkspaceCode(result.code)) throw new Error("The server returned an invalid workspace code.");
+    document.getElementById("workspaceCode").value=result.code;
+    await connectWorkspace(result.code,{importBrowserRecords:true});
+  } catch (error) {
+    setWorkspaceStatus(`Could not create a workspace: ${error.message}`,true);
+  } finally {
+    if (button) button.disabled=false;
+  }
+}
+document.getElementById("createWorkspace").addEventListener("click",event=>{
+  void createWorkspace({button:event.currentTarget});
+});
+document.getElementById("createCustomWorkspace").addEventListener("click",event=>{
+  void createWorkspace({custom:true,button:event.currentTarget});
+});
+document.getElementById("disconnectWorkspace").addEventListener("click",()=>{
+  workspaceRequestId++;
+  activeWorkspaceCode="";
+  activeWorkspaceRevision=null;
+  savedRecords=[];
+  editingRecordId=null;
+  document.getElementById("workspaceCode").value="";
+  try {
+    localStorage.removeItem(workspaceCodeStorageKey);
+  } catch (error) {
+    setWorkspaceStatus(`Disconnected, but the code could not be cleared from this browser: ${error.message}`,true);
+  }
+  updateSaveButton();
+  renderSavedRecords();
+  setWorkspaceStatus("Disconnected. Connect with a code or create a new workspace.");
+  showNotice("");
+});
+async function initializeWorkspace() {
+  updateSaveButton();
+  renderSavedRecords();
+  try {
+    const code=localStorage.getItem(workspaceCodeStorageKey);
+    if (code) {
+      document.getElementById("workspaceCode").value=code;
+      if (!await connectWorkspace(code)) {
+        setWorkspaceStatus("Could not reconnect with the saved code. Enter a different code or create a new workspace.",true);
+      }
+    }
+  } catch (error) {
+    setWorkspaceStatus(`Could not read the saved workspace code: ${error.message}`,true);
+  }
+}
+void initializeWorkspace();
+</script>
+</body>
+</html>
