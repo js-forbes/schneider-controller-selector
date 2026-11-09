@@ -17,7 +17,7 @@ from urllib.parse import unquote
 
 
 ROOT = Path(__file__).resolve().parent
-PAGE = "Schneider_MP-C_Controller_Selector_macOS.html"
+PAGE = "index.html"
 MAX_REQUEST_SIZE = 10 * 1024 * 1024
 CODE_ALPHABET = "ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789"
 FAILED_ATTEMPTS = 5
