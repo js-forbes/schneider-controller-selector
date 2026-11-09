@@ -135,6 +135,7 @@ button { cursor: pointer; }
 
 .content { min-width: 0; min-height: 0; padding: 26px 30px 20px; display: flex; flex-direction: column; overflow-y: auto; }
 .content-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 2px; }
+.content-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .content-title { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.65px; }
 .content-caption { margin: 5px 0 0; color: var(--secondary); font-size: 12px; }
 .subtle-label { color: var(--tertiary); font-size: 10px; letter-spacing: .5px; font-weight: 650; white-space: nowrap; padding-top: 6px; }
@@ -360,7 +361,10 @@ tbody tr:last-child td { border-bottom: 0; }
       <main class="content" aria-label="Controller selection results">
         <div class="content-header">
           <div><h2 class="content-title">Selection result</h2><p class="content-caption">Controller quantities and point capacity summary</p></div>
-          <span class="subtle-label">SCHNEIDER ELECTRIC · MP-C</span>
+          <div class="content-actions">
+            <span class="subtle-label">SCHNEIDER ELECTRIC · MP-C</span>
+            <button class="toolbar-button" id="printCurrentSelection" type="button" disabled>Print selection</button>
+          </div>
         </div>
 
         <section class="saved-library" aria-labelledby="savedHeading">
@@ -744,6 +748,10 @@ function showNotice(message,isError=false) {
 }
 function updateSaveButton() {
   const button=document.getElementById("saveSelection");
+  const printButton=document.getElementById("printCurrentSelection");
+  printButton.disabled=!lastCalculation;
+  printButton.title=lastCalculation ? "Print the current selection without saving it." :
+    "Calculate a valid selection before printing.";
   const enteredCode=document.getElementById("workspaceCode").value.normalize("NFC").toUpperCase();
   const connected=!activeWorkspaceCode || enteredCode===activeWorkspaceCode.normalize("NFC").toUpperCase();
   const record=editingRecordId && savedRecords.find(item=>item.id===editingRecordId);
@@ -1054,17 +1062,16 @@ function exportCSV(record) {
   const csv="\uFEFF"+rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
   downloadBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),`${fileSlug(record.name)}.csv`);
 }
-function printRecord(record) {
+function printSelection(name,input,result,metadata) {
   const print=document.getElementById("printDocument");
-  const input=record.inputs, result=record.result;
   const controllerRows=result.quantities.filter(item=>item.quantity>0).map(item=>{
     const model=models.find(entry=>entry.name===item.model);
     return `<tr><td>${item.model}</td><td>${item.quantity}</td><td>${item.quantity*model.ub}</td><td>${item.quantity*model.d}</td><td>${item.quantity*model.uc}</td></tr>`;
   }).join("");
   const pointRows=[["UB",result.required.ub,result.capacities.ub],["DO",result.required.d,result.capacities.d],["UC",result.required.uc,result.capacities.uc]]
     .map(([type,need,have])=>`<tr><td>${type}</td><td>${need}</td><td>${have}</td><td>${have-need}</td></tr>`).join("");
-  print.innerHTML=`<h1>${escapeHTML(record.name)}</h1>
-    <p class="print-meta">Schneider Electric MP-C Controller Selector · Created ${escapeHTML(dateLabel(record.createdAt))} · Updated ${escapeHTML(dateLabel(record.updatedAt))}</p>
+  print.innerHTML=`<h1>${escapeHTML(name)}</h1>
+    <p class="print-meta">Schneider Electric MP-C Controller Selector · ${escapeHTML(metadata)}</p>
     <p>Point requirements (entered): UB ${input.ub} (+${input.ubBuffer}%), DO ${input.do} (+${input.doBuffer}%), UC ${input.uc} (+${input.ucBuffer}%).</p>
     <p>Buffered requirements: UB ${result.required.ub}, DO ${result.required.d}, UC ${result.required.uc}. Priority: ${escapeHTML(input.objective)}.</p>
     <p>Forced quantities: ${escapeHTML(forcedQuantityLabel(input))}.</p>
@@ -1074,6 +1081,15 @@ function printRecord(record) {
     <p>Engineering note: Verify output electrical type, signal compatibility, application suitability, power and project standards before procurement.</p>`;
   window.print();
 }
+function printRecord(record) {
+  printSelection(record.name,record.inputs,record.result,
+    `Created ${escapeHTML(dateLabel(record.createdAt))} · Updated ${escapeHTML(dateLabel(record.updatedAt))}`);
+}
+document.getElementById("printCurrentSelection").addEventListener("click",()=>{
+  if (!lastCalculation) return;
+  printSelection("Current selection",lastCalculation.inputs,lastCalculation,
+    `Current calculation · Not saved · ${new Date().toLocaleString()}`);
+});
 async function handleRecordAction(action,id) {
   const record=savedRecords.find(item=>item.id===id);
   if (!record) return;
